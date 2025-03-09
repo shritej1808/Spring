@@ -5,9 +5,13 @@ import com.shritej.springsec.exceptionhandling.CustomAccessDeniedHandler;
 import com.shritej.springsec.exceptionhandling.CustomBasicAuthenticationEntryPoint;
 import com.shritej.springsec.filter.*;
 import jakarta.servlet.http.HttpServletRequest;
+//import lombok.Value;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.password.CompromisedPasswordChecker;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -17,6 +21,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
@@ -39,8 +44,21 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Profile("!prod")
 
 public class ProjectSecurityConfig {
+//    @Value("${spring.security.oauth2.resourceserver.opaque.introspection-uri}")
+//    String introspectionUri;
+//
+//    @Value("${spring.security.oauth2.resourceserver.opaque.client-id}")
+//    String clientId;
+//
+//    @Value("${spring.security.oauth2.resourceserver.opaque.client-secret}")
+//    String clientSecret;
+
+
+
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
         CsrfTokenRequestAttributeHandler csrfTokenRequestAttributeHandler = new CsrfTokenRequestAttributeHandler();
         http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .cors(corsConfig -> corsConfig.configurationSource(new CorsConfigurationSource() {
@@ -57,48 +75,55 @@ public class ProjectSecurityConfig {
                     }
                 }))
                 .csrf(csrfConfig -> csrfConfig.csrfTokenRequestHandler(csrfTokenRequestAttributeHandler)
-                        .ignoringRequestMatchers( "/contact","/register", "/apiLogin")
+                        .ignoringRequestMatchers( "/contact","/register")
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
-                .addFilterBefore(new RequestValidationBeforeFilter(), BasicAuthenticationFilter.class)
-                .addFilterAfter(new AuthoritiesLoggingAfterFilter(), BasicAuthenticationFilter.class)
-                .addFilterAt(new AuthoritiesLoggingAtFilter(), BasicAuthenticationFilter.class)
-                .addFilterAfter(new JWTTokenGeneratorFilter(), BasicAuthenticationFilter.class)
-                .addFilterBefore(new JWTTokenValidatorFilter(), BasicAuthenticationFilter.class)
+//                .addFilterBefore(new RequestValidationBeforeFilter(), BasicAuthenticationFilter.class)
+//                .addFilterAfter(new AuthoritiesLoggingAfterFilter(), BasicAuthenticationFilter.class)
+//                .addFilterAt(new AuthoritiesLoggingAtFilter(), BasicAuthenticationFilter.class)
+//                .addFilterAfter(new JWTTokenGeneratorFilter(), BasicAuthenticationFilter.class)
+//                .addFilterBefore(new JWTTokenValidatorFilter(), BasicAuthenticationFilter.class)
                 .requiresChannel(rcc -> rcc.anyRequest().requiresInsecure()) // Only HTTP
                 .authorizeHttpRequests((requests) -> requests
                         .requestMatchers("/myAccount").hasRole("USER")
                         .requestMatchers("/myBalance").hasAnyRole("USER", "ADMIN")
-                        .requestMatchers("/myLoans").hasRole("USER")
+//                        .requestMatchers("/myLoans").authenticated()
+                        .requestMatchers("/myLoans").hasAnyRole("USER")
                         .requestMatchers("/myCards").hasRole("USER")
                         .requestMatchers("/user").authenticated()
-                        .requestMatchers("/notices", "/contact", "/error", "/register", "/invalidSession", "/apiLogin").permitAll());
-        http.formLogin(withDefaults());
-        http.httpBasic(hbc -> hbc.authenticationEntryPoint(new CustomBasicAuthenticationEntryPoint()));
+                        .requestMatchers("/notices", "/contact", "/error", "/register").permitAll());
+//        http.formLogin(withDefaults());
+//        http.httpBasic(hbc -> hbc.authenticationEntryPoint(new CustomBasicAuthenticationEntryPoint()));
+        http.oauth2ResourceServer(rsc->rsc
+                .jwt(jwtConfigurer -> jwtConfigurer.jwtAuthenticationConverter(jwtAuthenticationConverter)));
+//       http.oauth2ResourceServer(rsc->rsc.opaqueToken(ofc->ofc.authenticationConverter(new KeycloakOpaqueRoleConvertor())
+//               .introspectionUri(introspectionUri).introspectionClientCredentials(this.clientId,this.clientSecret)));
         http.exceptionHandling(ehc -> ehc.accessDeniedHandler(new CustomAccessDeniedHandler()));
         return http.build();
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
+//    @Bean
+//    public PasswordEncoder passwordEncoder() {
+//        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+//    }
+//
+//
+//    @Bean
+//    public CompromisedPasswordChecker compromisedPasswordChecker() {
+//        return new HaveIBeenPwnedRestApiPasswordChecker();
+//    }
 
-
-    @Bean
-    public CompromisedPasswordChecker compromisedPasswordChecker() {
-        return new HaveIBeenPwnedRestApiPasswordChecker();
-    }
 
 //    @Bean
 //    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
 //                                                       PasswordEncoder passwordEncoder) {
-//        EazyBankUsernamePwdAuthenticationProvider authenticationProvider =
-//                new EazyBankUsernamePwdAuthenticationProvider(userDetailsService, passwordEncoder);
+//        EazyBankUsernamePasswordAuthenticationProvider authenticationProvider =
+//                new EazyBankUsernamePasswordAuthenticationProvider(userDetailsService, passwordEncoder);
 //        ProviderManager providerManager = new ProviderManager(authenticationProvider);
 //        providerManager.setEraseCredentialsAfterAuthentication(false);
 //        return  providerManager;
-}
+//}
+ }
 
 
 

@@ -1,13 +1,13 @@
 package com.shritej.springsec.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.sql.Date;
+import java.util.UUID;
+
 
 @Entity
 @Getter @Setter
